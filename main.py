@@ -47,7 +47,7 @@ async def button_handler(update: Update, context: CallbackContext):
     
     elif query.data == BUTTON_ANIMAL:
         user_states[query.from_user.id] = "waiting_for_animal"
-        await query.message.reply_text("Digite o nome de um animal:")
+        await query.message.reply_text("Digite o nome de uma carta:")
 
 
 async def handle_message(update: Update, context: CallbackContext):
@@ -55,15 +55,16 @@ async def handle_message(update: Update, context: CallbackContext):
 
     if user_id in user_states and user_states[user_id] == "waiting_for_animal":
         cards = Card.where(name=update.message.text).all()
-        await update.message.reply_text(f"Você escolheu: {cards}")
+        # await update.message.reply_text(f"Você escolheu: {cards}")
         if cards:
             resposta = ""
             for card in cards:
-                resposta += f"Nome: {card.name}\nTipo: {card.type}\nCusto: {card.mana_cost}\n\n{card.artist}"
+                # image = card.imageUrl
+                image = card.image_url if hasattr(card, 'image_url') else 'Sem imagem disponível'                    
+                resposta += f"Nome: {card.name}\nTipo: {card.type}\nCusto: {card.mana_cost}\n{card.artist}\n{image}\n\n"
             await update.message.reply_text(f"Você escolheu:\n\n{resposta}")
         else:
             await update.message.reply_text("Nenhuma carta encontrada com esse nome.")
-        print(dir(cards))
         del user_states[user_id]
 
 
