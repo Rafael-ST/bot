@@ -2,7 +2,7 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, filters
 from datetime import datetime
-# import requests
+import requests
 
 from mtgsdk import Card
 
@@ -21,6 +21,12 @@ BUTTON_SOBRE = "sobre"
 BUTTON_ANIMAL = "animal"
 
 user_states = {}
+
+url = "https://api.magicthegathering.io/v1/cards"
+headers = {
+    "Authorization": "Bearer SEU_TOKEN_AQUI",
+    "Content-Type": "application/json"
+}
 
 
 async def start(update: Update, context: CallbackContext):
@@ -52,19 +58,59 @@ async def button_handler(update: Update, context: CallbackContext):
 
 async def handle_message(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
+    message_text = update.message.text
+
+    def buscar_cartas(nome):
+        payload = {
+            "name": nome,
+            "language": "Portuguese (Brazil)"
+        }
+        response = requests.get(url, headers=headers, params=payload)
+        if response.status_code == 200:
+            resposta = response.json()
+            try:
+                resposta= resposta['cards'][0]['foreignNames']
+            except Exception:
+                resposta = None
+            # resposta= resposta['cards'][0]
+
+            return resposta
+        else:
+            raise Exception(f"Erro na API: {response.status_code}")
+    
+    def criar_resposta(cartas):
+        resposta = ""
+        for card in cartas:
+            print(card)
+            resposta += f"Nome: {card}"
+            # resposta += f"Nome: {card.get('name', 'Desconhecido')}\nTipo: {card.get('type', 'Desconhecido')}\nCusto: {card.get('mana_cost', 'Desconhecido')}\nArtista: {card.get('artist', 'Desconhecido')}\n{image}\n\n"
+        return resposta
 
     if user_id in user_states and user_states[user_id] == "waiting_for_animal":
-        cards = Card.where(name=update.message.text).all()
-        # await update.message.reply_text(f"Você escolheu: {cards}")
-        if cards:
-            resposta = ""
-            for card in cards:
-                # image = card.imageUrl
-                image = card.image_url if hasattr(card, 'image_url') else 'Sem imagem disponível'                    
-                resposta += f"Nome: {card.name}\nTipo: {card.type}\nCusto: {card.mana_cost}\n{card.artist}\n{image}\n\n"
+        # try:
+        resposta = ''
+        cartas = buscar_cartas(message_text)
+        if cartas:
+            for carta in cartas:
+                if carta['language'] == 'Portuguese (Brazil)':
+                    resposta += f'Nome: {carta['name']}\nTipo: {carta['type']}\n{carta['imageUrl']}'
+                    # resposta += f'{carta['name']}\n\n'
             await update.message.reply_text(f"Você escolheu:\n\n{resposta}")
         else:
             await update.message.reply_text("Nenhuma carta encontrada com esse nome.")
+        # except Exception as e:
+        #     await update.message.reply_text(f"Ocorreu um erro: {str(e)}")
+        # cards = Card.where(name=update.message.text).all()
+        # await update.message.reply_text(f"Você escolheu: {cards}")
+        # if cards:
+        #     resposta = ""
+        #     for card in cards:
+        #         # image = card.imageUrl
+        #         image = card.image_url if hasattr(card, 'image_url') else 'Sem imagem disponível'                    
+        #         resposta += f"Nome: {card.name}\nTipo: {card.type}\nCusto: {card.mana_cost}\n{card.artist}\n{image}\n\n"
+        #     await update.message.reply_text(f"Você escolheu:\n\n{resposta}")
+        # else:
+        #     await update.message.reply_text("Nenhuma carta encontrada com esse nome.")
         del user_states[user_id]
 
 
